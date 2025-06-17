@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Voice-Enabled Recipe Search App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0 20px;
+      background: linear-gradient(to right, #ffe0e6, #e0f7fa);
+      color: #333;
+    }
+    body.dark {
+      background: #121212;
+      color: #fff;
+    }
+    h1 {
+      text-align: center;
+      color: #ff4081;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 15px;
+    }
+    .nav-btn {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      background-color: #ff4081;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .nav-btn:hover {
+      background-color: #c2185b;
+    }
+    button, select, input[type="text"] {
+      margin: 5px;
+      padding: 8px 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    #theme-toggle {
+      float: right;
+      background-color: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #search {
+      width: 50%;
+      border: 1px solid #aaa;
+    }
+    #mic-btn {
+      background-color: #e91e63;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #mic-btn:hover {
+      background-color: #c2185b;
+    }
+    .recipe-card {
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 10px;
+      margin: 15px;
+      background: white;
+      box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+      position: relative;
+      transition: transform 0.3s;
+      width: 220px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    body.dark .recipe-card {
+      background: #222;
+      border-color: #555;
+      color: #ddd;
+      box-shadow: none;
+    }
+    .recipe-card:hover {
+      transform: scale(1.02);
+    }
+    .fav-icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+    #recipes {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .suggestions-list {
+      position: absolute;
+      background: #fff;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      width: 300px;
+      border: 1px solid #ccc;
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 10;
+      cursor: pointer;
+    }
+    body.dark .suggestions-list {
+      background: #333;
+      color: white;
+      border-color: #666;
+    }
+    .suggestions-list li {
+      padding: 5px;
+    }
+    .suggestions-list li:hover, .suggestions-list li:focus {
+      background-color: #eee;
+    }
+    body.dark .suggestions-list li:hover, body.dark .suggestions-list li:focus {
+      background-color: #555;
+    }
+    #recipe-details {
+      background: #fff3e0;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px auto;
+      max-width: 700px;
+      display: none;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    body.dark #recipe-details {
+      background: #3a3a3a;
+      color: #ddd;
+      box-shadow: 0 0 10px #000;
+    }
+    aside {
+      margin-top: 20px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    aside ul {
+      list-style-type: disc;
+      padding-left: 20px;
+      max-height: 150px;
+      overflow-y: auto;
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    body.dark aside ul {
+      background: #2b2b2b;
+    }
+    .skeleton-card {
+      height: 150px;
+      width: 100%;
+      margin: 20px 0;
+      background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite linear;
+    }
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    #alphabet-filter button {
+      margin: 2px;
+      padding: 6px 9px;
+      border: 1px solid #ccc;
+      background: white;
+      cursor: pointer;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    #alphabet-filter button.active {
+      background-color: #ff4081;
+      color: white;
+      border-color: #ff4081;
+    }
+    body.dark #alphabet-filter button {
+      background: #222;
+      border-color: #555;
+      color: #ddd;
+    }
+    body.dark #alphabet-filter button.active {
+      background-color: #f50057;
+      border-color: #f50057;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🍽 Recipe Search App</h1>
+  <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙 Dark Mode</button>
+
+  <nav>
+    <button class="nav-btn" data-target="home" aria-controls="recipes" aria-expanded="true">🏠 Home</button>
+    <button class="nav-btn" data-target="favorites" aria-controls="recipes" aria-expanded="false">❤ Favorites</button>
+    <button class="nav-btn" data-target="activity" aria-controls="trace-content" aria-expanded="false">🧾 Activity Log</button>
+  </nav>
+
+  <br>
+  <div style="position: relative; max-width: 600px; margin: 0 auto;">
+    <input type="text" id="search" placeholder="Search recipes..." aria-autocomplete="list" aria-haspopup="true" aria-controls="suggestions" aria-expanded="false" autocomplete="off" />
+    <button id="mic-btn" aria-label="Start voice search">🎤 Speak</button>
+    <ul id="suggestions" class="suggestions-list" role="listbox" aria-label="Search suggestions" hidden></ul>
+  </div>
+
+  <div style="max-width: 600px; margin: 10px auto; display: flex; justify-content: space-between; gap: 10px;">
+    <select id="area-select" aria-label="Filter by cuisine area">
+      <option value="all">All Cuisines</option>
+    </select>
+
+    <select id="veg-filter" aria-label="Filter by vegetarian or non-vegetarian">
+      <option value="all">All</option>
+      <option value="veg">Veg</option>
+      <option value="nonveg">Non-Veg</option>
+    </select>
+  </div>
+
+  <div id="alphabet-filter" style="text-align:center; max-width: 600px; margin: 0 auto;"></div>
+
+  <div id="loader" class="skeleton-card" style="display:none;"></div>
+  <div id="recipes" role="region" aria-live="polite" aria-label="Recipe results"></div>
+  <div id="recipe-details" tabindex="0" aria-hidden="true"></div>
+
+  <aside>
+    <div id="trace-content" hidden>
+      <h3>Activity Log</h3>
+      <div><strong>Search History:</strong><ul id="search-history"></ul></div>
+      <div><strong>Clicked Recipes:</strong><ul id="click-history"></ul></div>
+      <div><strong>Voice Searches:</strong><ul id="voice-history"></ul></div>
+    </div>
+  </aside>
+
+  <script>
+    // Globals
+    const recipesEl = document.getElementById('recipes');
+    const recipeDetailsEl = document.getElementById('recipe-details');
+    const searchInput = document.getElementById('search');
+    const suggestionsEl = document.getElementById('suggestions');
+    const micBtn = document.getElementById('mic-btn');
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const traceContent = document .getElementById('trace-content');
+const loader = document.getElementById('loader');
+const areaSelect = document.getElementById('area-select');
+const vegFilter = document.getElementById('veg-filter');
+const searchHistoryEl = document.getElementById('search-history');
+const clickHistoryEl = document.getElementById('click-history');
+const voiceHistoryEl = document.getElementById('voice-history');
+const alphabetFilterEl = document.getElementById('alphabet-filter');
+// Local Storage Keys
+const LS_FAVORITES = 'recipeAppFavorites';
+const LS_SEARCH_HISTORY = 'recipeAppSearchHistory';
+const LS_CLICK_HISTORY = 'recipeAppClickHistory';
+const LS_VOICE_HISTORY = 'recipeAppVoiceHistory';
+const LS_THEME = 'recipeAppTheme';
+
+// Data Stores
+let allRecipes = [];
+let filteredRecipes = [];
+let favorites = JSON.parse(localStorage.getItem(LS_FAVORITES)) || [];
+let searchHistory = JSON.parse(localStorage.getItem(LS_SEARCH_HISTORY)) || [];
+let clickHistory = JSON.parse(localStorage.getItem(LS_CLICK_HISTORY)) || [];
+let voiceHistory = JSON.parse(localStorage.getItem(LS_VOICE_HISTORY)) || [];
+let currentView = 'home';
+
+// Utility Functions
+function saveToLS(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+// Fetch initial recipes (Italian cuisine as default)
+async function fetchRecipesByArea(area = 'Italian') {
+  loader.style.display = 'block';
+  try {
+    const res = await fetch(https://www.themealdb.com/api/json/v1/1/filter.php?a=${area});
+    const data = await res.json();
+    allRecipes = data.meals || [];
+    filteredRecipes = [...allRecipes];
+    renderRecipes();
+    populateAreaFilter();
+    loader.style.display = 'none';
+  } catch (e) {
+    console.error('Error fetching recipes:', e);
+    loader.style.display = 'none';
+  }
+}
+
+// Fetch meal details by ID
+async function fetchRecipeDetails(id) {
+  try {
+    const res = await fetch(https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id});
+    const data = await res.json();
+    return data.meals ? data.meals[0] : null;
+  } catch (e) {
+    console.error('Error fetching recipe details:', e);
+    return null;
+  }
+}
+
+// Render recipe cards
+function renderRecipes() {
+  recipesEl.innerHTML = '';
+  if (filteredRecipes.length === 0) {
+    recipesEl.innerHTML = '<p>No recipes found.</p>';
+    return;
+  }
+  filteredRecipes.forEach(recipe => {
+    const card = document.createElement('div');
+    card.className = 'recipe-card';
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-pressed', 'false');
+    card.setAttribute('aria-label', View details for ${recipe.strMeal});
+    card.innerHTML = `
+      <img src="${recipe.strMealThumb}" alt="${recipe.strMeal}" style="width: 200px; border-radius:8px" />
+      <h3>${recipe.strMeal}</h3>
+      <span class="fav-icon" role="checkbox" aria-checked="${favorites.includes(recipe.idMeal)}" aria-label="Toggle favorite for ${recipe.strMeal}">${favorites.includes(recipe.idMeal) ? '❤' : '🤍'}</span>
+    `;
+    // Click on card to show details
+    card.addEventListener('click', () => showRecipeDetails(recipe.idMeal));
+    card.addEventListener('keydown', e => {
+      if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        showRecipeDetails(recipe.idMeal);
+      }
+    });
+    // Favorite toggle
+    const favIcon = card.querySelector('.fav-icon');
+    favIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFavorite(recipe.idMeal, favIcon);
+    });
+    favIcon.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFavorite(recipe.idMeal, favIcon);
+      }
+    });
+    recipesEl.appendChild(card);
+  });
+}
+
+// Show recipe details panel
+async function showRecipeDetails(id) {
+  const recipe = await fetchRecipeDetails(id);
+  if (!recipe) return;
+  // Log click for activity trace
+  addClickHistory(recipe.strMeal);
+
+  recipeDetailsEl.style.display = 'block';
+  recipeDetailsEl.setAttribute('aria-hidden', 'false');
+  recipeDetailsEl.focus();
+
+  // Extract ingredients and measures
+  let ingredientsList = '';
+  for(let i=1; i<=20; i++) {
+    let ingredient = recipe[strIngredient${i}];
+    let measure = recipe[strMeasure${i}];
+    if(ingredient && ingredient.trim() !== '') {
+      ingredientsList += <li>${measure} ${ingredient}</li>;
+    }
+  }
+
+  recipeDetailsEl.innerHTML = `
+    <h2>${recipe.strMeal}</h2>
+    <img src="${recipe.strMealThumb}" alt="Image of ${recipe.strMeal}" style="width: 100%; max-width: 400px; border-radius:10px" />
+    <p><strong>Category:</strong> ${recipe.strCategory || 'N/A'}</p>
+    <p><strong>Cuisine:</strong> ${recipe.strArea || 'N/A'}</p>
+    <p><strong>Instructions:</strong></p>
+    <p>${recipe.strInstructions || 'No instructions available.'}</p>
+    <p><strong>Ingredients:</strong></p>
+    <ul>${ingredientsList}</ul>
+    <a href="${recipe.strSource || '#'}" target="_blank" rel="noopener">Original Source</a>
+  `;
+}
+
+// Toggle favorite recipe
+function toggleFavorite(id, iconEl) {
+  const index = favorites.indexOf(id);
+  if(index === -1) {
+    favorites.push(id);
+    iconEl.textContent = '❤';
+    iconEl.setAttribute('aria-checked', 'true');
+  } else {
+    favorites.splice(index,1);
+    iconEl.textContent = '🤍';
+    iconEl.setAttribute('aria-checked', 'false');
+  }
+  saveToLS(LS_FAVORITES, favorites);
+}
+
+// Show favorites view
+async function showFavorites() {
+  currentView = 'favorites';
+  recipeDetailsEl.style.display = 'none';
+  recipesEl.innerHTML = '';
+  if(favorites.length === 0) {
+    recipesEl.innerHTML = '<p>No favorite recipes saved.</p>';
+    return;
+  }
+  loader.style.display = 'block';
+  const favRecipes = [];
+  for(const id of favorites) {
+    const recipe = await fetchRecipeDetails(id);
+    if(recipe) favRecipes.push(recipe);
+  }
+  filteredRecipes = favRecipes;
+  loader.style.display = 'none';
+  renderRecipes();
+}
+
+// Show activity log view
+function showActivity() {
+  currentView = 'activity';
+  recipeDetailsEl.style.display = 'none';
+  recipesEl.innerHTML = '';
+  traceContent.hidden = false;
+
+  // Render lists
+  renderList(searchHistoryEl, searchHistory);
+  renderList(clickHistoryEl, clickHistory);
+  renderList(voiceHistoryEl, voiceHistory);
+}
+
+function renderList(element, items) {
+  element.innerHTML = '';
+  if(items.length === 0) {
+    element.innerHTML = '<li>None</li>';
+    return;
+  }
+  items.slice(-10).reverse().forEach(item => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    element.appendChild(li);
+  });
+}
+
+// Add to search history
+function addSearchHistory(term) {
+  if(term && !searchHistory.includes(term)) {
+    searchHistory.push(term);
+    if(searchHistory.length > 50) searchHistory.shift(); // keep max 50
+    saveToLS(LS_SEARCH_HISTORY, searchHistory);
+  }
+}
+
+// Add to click history
+function addClickHistory(recipeName) {
+  if(recipeName && !clickHistory.includes(recipeName)) {
+    clickHistory.push(recipeName);
+    if(clickHistory.length > 50) clickHistory.shift();
+    saveToLS(LS_CLICK_HISTORY, clickHistory);
+  }
+}
+
+// Add to voice search history
+function addVoiceHistory(term) {
+  if(term && !voiceHistory.includes(term)) {
+    voiceHistory.push(term);
+    if(voiceHistory.length > 50) voiceHistory.shift();
+    saveToLS(LS_VOICE_HISTORY, voiceHistory);
+  }
+}
+
+// Search recipes by name (using API)
+async function searchRecipesByName(name) {
+  if(!name) return;
+  loader.style.display = 'block';
+  try {
+    const res = await fetch(https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(name)});
+    const data = await res.json();
+    allRecipes = data.meals || [];
+    filteredRecipes = [...allRecipes];
+    renderRecipes();
+    loader.style.display = 'none';
+  } catch(e) {
+    console.error('Search error:', e);
+    loader.style.display = 'none';
+  }
+}
+
+// Populate area filter select dropdown dynamically
+async function populateAreaFilter() {
+  try {
+    const res = await fetch('https://www.themealdb.com/api/json/v1/1/list.php?a=list');
+    const data = await res.json();
+    const areas = data.meals.map(a => a.strArea);
+    areaSelect.innerHTML = '<option value="all">All Cuisines</option>';
+    areas.forEach(area => {
+      const opt = document.createElement('option');
+      opt.value = area;
+      opt.textContent = area;
+      areaSelect.appendChild(opt);
+    });
+  } catch (e) {
+    console.error('Error fetching area list:', e);
+  }
+}
+
+// Filter recipes by area and vegetarian filter
+async function filterRecipes() {
+  let area = areaSelect.value;
+  let veg = vegFilter.value;
+  if(area === 'all') {
+    await fetchRecipesByArea('Italian'); // fallback default fetch
+  } else {
+    await fetchRecipesByArea(area);
+  }
+
+  if(veg !== 'all') {
+    filteredRecipes = filteredRecipes.filter(recipe => {
+      // Heuristic: if meal name or category contains 'Vegetarian' or 'Veg'
+      const nameLower = recipe.strMeal.toLowerCase();
+      const catLower = recipe.strCategory ? recipe.strCategory.toLowerCase() : '';
+      if(veg === 'veg') {
+        return nameLower.includes('vegetarian') || catLower.includes('vegetarian') || nameLower.includes('veg');
+      } else {
+        return !(nameLower.includes('vegetarian') || catLower.includes('vegetarian') || nameLower.includes('veg'));
+      }
+    });
+  }
+
+  // Apply alphabet filter if active
+  const activeAlphaBtn = alphabetFilterEl.querySelector('button.active');
+  if(activeAlphaBtn) {
+    const char = activeAlphaBtn.textContent.toLowerCase();
+    filteredRecipes = filteredRecipes.filter(r => r.strMeal.toLowerCase().startsWith(char));
+  }
+
+  renderRecipes();
+}
+
+// Create alphabet filter buttons
+function createAlphabetFilter() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  letters.forEach(letter => {
+    const btn = document.createElement('button');
+    btn.textContent = letter;
+    btn.setAttribute('aria-label', Filter recipes starting with ${letter});
+    btn.addEventListener('click', () => {
+      const active = alphabetFilterEl.querySelector('button.active');
+      if(active) active.classList.remove('active');
+      btn.classList.add('active');
+      filterRecipes();
+    });
+    alphabetFilterEl.appendChild(btn);
+  });
+
+  // Add clear filter button
+  const clearBtn = document.createElement('button');
+  clearBtn.textContent = 'All';
+  clearBtn.setAttribute('aria-label', 'Clear alphabet filter');
+  clearBtn.addEventListener('click', () => {
+    const active = alphabetFilterEl.querySelector('button.active');
+    if(active) active.classList.remove('active');
+    filterRecipes();
+  });
+  alphabetFilterEl.appendChild(clearBtn);
+}
+
+// Voice recognition setup
+let recognition;
+if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.addEventListener('result', e => {
+    const transcript = e.results[0][0].transcript.trim();
+    searchInput.value = transcript;
+    addVoiceHistory(transcript);
+    addSearchHistory(transcript);
+    searchRecipesByName(transcript);
+  });
+
+  recognition.addEventListener('end', () => {
+    micBtn.disabled = false;
+    micBtn.textContent = '🎤 Speak';
+  });
+} else {
+  micBtn.disabled = true;
+  micBtn.title = 'Speech Recognition not supported in your browser';
+}
+
+// Event Listeners
+micBtn.addEventListener('click', () => {
+  if(recognition) {
+    micBtn.disabled = true;
+    micBtn.textContent = '🎙 Listening...';
+    recognition.start();
+  }
+});
+
+searchInput.addEventListener('input', e => {
+  const val = e.target.value.trim().toLowerCase();
+  if(val.length === 0) {
+    suggestionsEl.innerHTML = '';
+    suggestionsEl.hidden = true;
+    searchRecipesByName('');
+    return;
+  }
+  // Show suggestions (filter current loaded recipes)
+  const matched = allRecipes.filter(r => r.strMeal.toLowerCase().startsWith(val)).slice(0,7);
+  if(matched.length === 0) {
+    suggestionsEl.innerHTML = '';
+    suggestionsEl.hidden = true;
+    return;
+  }
+  suggestionsEl.innerHTML = matched.map(r => <li tabindex="0" role="option">${r.strMeal}</li>).join('');
+  suggestionsEl.hidden = false;
+  suggestionsEl.setAttribute('aria-expanded', 'true');
+
+  // Suggestion click
+  Array.from(suggestionsEl.children).forEach(li => {
+    li.addEventListener('click', () => {
+      searchInput.value = li.textContent;
+      suggestionsEl.hidden = true;
+      addSearchHistory(li.textContent);
+      searchRecipesByName(li.textContent);
+    });
+    li.addEventListener('keydown', e => {
+      if(e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        searchInput.value = li.textContent;
+        suggestionsEl.hidden = true;
+        addSearchHistory(li.textContent);
+        searchRecipesByName(li.textContent);
+      }
+    });
+  });
+});
+
+searchInput.addEventListener('keydown', e => {
+  if(e.key === 'Enter') {
+    const term = searchInput.value.trim();
+    if(term) {
+      addSearchHistory(term);
+      searchRecipesByName(term);
+      suggestionsEl.hidden = true;
+    }
+  }
+});
+
+areaSelect.addEventListener('change', filterRecipes);
+vegFilter.addEventListener('change', filterRecipes);
+
+themeToggleBtn.addEventListener('click', () => {
+  document.body.classList.toggle('dark');
+  const isDark = document.body.classList.contains('dark');
+  themeToggleBtn.textContent = isDark ? '☀ Light Mode' : '🌙 Dark Mode';
+  saveToLS(LS_THEME, isDark ? 'dark' : 'light');
+});
+
+navBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    navBtns.forEach(b => {
+      b.setAttribute('aria-expanded', 'false');
+    });
+    btn.setAttribute('aria-expanded', 'true');
+
+    traceContent.hidden = true;
+    recipeDetailsEl.style.display = 'none';
+    recipesEl.innerHTML = '';
+
+    if(btn.dataset.target === 'home') {
+      currentView = 'home';
+      filterRecipes();
+    } else if(btn.dataset.target === 'favorites') {
+      showFavorites();
+    } else if(btn.dataset.target === 'activity') {
+      showActivity();
+    }
+  });
+});
+
+// Initialize theme from localStorage
+function initTheme() {
+  const saved = localStorage.getItem(LS_THEME);
+  if(saved === 'dark') {
+    document.body.classList.add('dark');
+    themeToggleBtn.textContent = '☀ Light Mode';
+  } else {
+    themeToggleBtn.textContent = '🌙 Dark Mode';
+  }
+}
+
+// Initial load
+(async function init() {
+  initTheme();
+  createAlphabetFilter();
+  await populateAreaFilter();
+  await fetchRecipesByArea('Italian');
+})();
+
+
+</script>
+</body>
+</html>
